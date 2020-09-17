@@ -1,11 +1,11 @@
 # Python CircleCI 2.0 configuration file
 version: 2.1
 jobs:
-  build:
+  conda_develop:
     docker:
       - image: continuumio/miniconda3
 
-    working_directory: ~/repo
+    working_directory: ~/repo-conda-develop
 
     steps:
       # Step 1: obtain repo from GitHub
@@ -33,14 +33,77 @@ jobs:
       # only run select notebooks due to possible memory issues
       - run:
           name: run tests
+          no_output_timeout: 30m
           command: |
             set -e
             source activate pymks
             python setup.py develop
-            py.test pymks
+            py.test pymks/fmks
             py.test notebooks/elasticity.ipynb
             py.test notebooks/filter.ipynb
             py.test notebooks/intro.ipynb
             py.test notebooks/multiphase.ipynb
             py.test notebooks/checkerboard.ipynb
-            py.test notebooks/stress.ipynb
+            py.test notebooks/fiber.ipynb
+
+
+  pip_install:
+    docker:
+      - image: continuumio/miniconda3
+
+    working_directory: ~/repo-pip-install
+
+    steps:
+
+      - checkout
+
+      - run:
+          name: Setup
+          command: |
+            conda create -n pip-install python=3
+            source activate pip-install
+            pip install .
+
+      - run:
+          name: Test
+          no_output_timeout: 30m
+          command: |
+            set -e
+            source activate pip-install
+            python -c "import pymks; pymks.test()"
+
+
+  conda_forge:
+    docker:
+      - image: continuumio/miniconda3
+
+    working_directory: ~/repo-conda-forge-install
+
+    steps:
+
+      - checkout
+
+      - run:
+          name: Setup
+          command: |
+            conda create -n conda-forge python=3
+            source activate conda-forge
+            conda install -c conda-forge pymks
+            python setup.py develop
+
+      - run:
+          name: Test
+          no_output_timeout: 30m
+          command: |
+            set -e
+            source activate conda-forge
+            python -c "import pymks; pymks.test()"
+
+
+workflows:
+  version: 2
+  test:
+    jobs:
+      - conda_develop
+      - pip_install
+      - conda_forge
